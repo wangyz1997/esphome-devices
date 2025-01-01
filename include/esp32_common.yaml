@@ -1,0 +1,40 @@
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+# 启用串口配网
+improv_serial:
+
+# 启用AP配网与配网Web页面
+wifi:
+  ap: {}
+
+captive_portal:
+
+# 启用Home Assistant API
+api:
+
+# 启用OTA升级
+ota:
+  - platform: esphome
+    id: ota_esphome
+
+# 启用日志打印
+logger:
+  level: info
+
+# 重启与复位按键
+button:
+- platform: restart
+  name: "复位芯片"
+  entity_category: "diagnostic"
+- platform: factory_reset
+  name: "恢复出厂设置"
+  id: factory_reset_button
+  entity_category: "diagnostic"
+
+# Wi-Fi信号强度传感器
+sensor:
+- platform: wifi_signal
+  name: "Wi-Fi信号强度"

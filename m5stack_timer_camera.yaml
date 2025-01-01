@@ -1,0 +1,103 @@
+esphome:
+  name: "m5stack-timer-camera" # 设备请求DHCP与OTA升级时使用的主机名
+  friendly_name: "M5Stack Timer Camera" # 添加到ESPHome集成时的默认名称
+  project:
+    name: "wangyz.m5stack_camera" # 显示在设备详情页面的制造商与设备名
+    version: "v0.1"
+  # name_add_mac_suffix: true # 在设备名称后添加MAC地址后6位
+  platformio_options:
+    upload_speed: 1500000 # Timer Camera开发板最高只能使用115200，750000，1500000波特率
+
+# 引入ESP32通用配置
+packages:
+  esp32_common: !include include/esp32_common.yaml
+
+esp32:
+  framework:
+    sdkconfig_options: # 设置esp-idf
+      CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240: "y" # 设置CPU频率为240MHz
+      CONFIG_ESPTOOLPY_FLASHMODE_QIO: "y"
+      CONFIG_ESPTOOLPY_FLASHFREQ_80M: "y" # 设置Flash为QSPI总线，80M时钟频率
+      CONFIG_ESP32_REV_MIN_3: "y" # 设置最小芯片版本为ECO3，提高PSRAM性能，低ECO版本芯片需要注释掉才能运行
+      CONFIG_COMPILER_OPTIMIZATION_PERF: "y" # 设置编译器优化等级为-O2
+
+# 启用PSRAM
+psram:
+  mode: quad
+  speed: 80MHz
+
+# 启用摄像头硬件
+esp32_camera:
+  name: 摄像头
+  external_clock:
+    pin: GPIO27
+    frequency: 20MHz
+  i2c_pins:
+    sda: GPIO25
+    scl: GPIO23
+  data_pins: [GPIO32, GPIO35, GPIO34, GPIO5, GPIO39, GPIO18, GPIO36, GPIO19]
+  vsync_pin: GPIO22
+  href_pin: GPIO26
+  pixel_clock_pin: GPIO21
+  reset_pin: GPIO15
+  resolution: 800x600 # 图像分辨率
+  jpeg_quality: 10 # JPG图像质量，10~63，越小越好
+  max_framerate: 30fps # 30fps帧率，10~60
+  frame_buffer_count: 2 # 2个帧缓冲区，1~2
+  horizontal_mirror: false # 取消横向镜像画面
+  aec2: true # 启用自动曝光控制
+  on_stream_start: # 开始摄像头预览时点亮LED
+    then:
+      - light.turn_on: led_blue
+  on_stream_stop: # 停止摄像头预览时关闭LED
+    then:
+      - light.turn_off: led_blue
+
+# 启用摄像头Web预览页面
+# esp32_camera_web_server:
+#   - port: 8080
+#     mode: stream
+#   - port: 8081
+#     mode: snapshot
+
+# 启用Web管理页面
+# web_server:
+#   port: 80
+
+# 启用芯片内部温度传感器
+sensor:
+  - platform: internal_temperature
+    name: "ESP32温度"
+    update_interval: 10s
+
+# 二合一状态指示灯：系统警告或错误时闪烁；正常时可由程序控制
+light:
+  - platform: status_led
+    id: "led_blue"
+    pin: GPIO2
+
+# 添加按键GPIO
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO37
+      inverted: true
+    id: gpio_button
+    on_multi_click:
+      - timing: # 长按5秒后
+          - ON for at least 5s
+        then: # 闪烁3次LED后恢复出厂设置
+          - light.turn_on: led_blue
+          - delay: 100ms
+          - light.turn_off: led_blue
+          - delay: 100ms
+          - light.turn_on: led_blue
+          - delay: 100ms
+          - light.turn_off: led_blue
+          - delay: 100ms
+          - light.turn_on: led_blue
+          - delay: 100ms
+          - light.turn_off: led_blue
+          - delay: 100ms
+          - light.turn_off: led_blue
+          - button.press: factory_reset_button
